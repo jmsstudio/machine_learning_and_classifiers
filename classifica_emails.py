@@ -2,6 +2,7 @@
 #! -*- coding: utf-8 -*-
 import pandas as pd
 import numpy as np
+import nltk
 from collections import Counter
 
 from sklearn.naive_bayes import MultinomialNB
@@ -11,16 +12,28 @@ from sklearn.multiclass import OneVsOneClassifier
 from sklearn.svm import LinearSVC
 from sklearn.model_selection import cross_val_score
 
-df_classifications = pd.read_csv('data/emails.csv')
+df_classifications = pd.read_csv('data/emails.csv', encoding='utf-8')
 texts = df_classifications['email']
 Y_df = df_classifications['classificacao']
 
-splitten_texts = texts.str.lower().str.split(' ')
+# nltk dependencies
+nltk.download('stopwords')
+nltk.download('rslp')
+nltk.download('punkt')
+
+stopwords = nltk.corpus.stopwords.words('portuguese')
+stemmer = nltk.stem.RSLPStemmer()
+
+lowered_texts = texts.str.lower()
+splitten_texts = [nltk.tokenize.word_tokenize(text) for text in lowered_texts]
 words = set()
 
 for word_list in splitten_texts:
-    words.update(word_list)
+    valid_words = [
+        stemmer.stem(word) for word in word_list if word not in stopwords and len(word) > 2]
+    words.update(valid_words)
 
+print words
 word_count = len(words)
 word_tuples = zip(words, xrange(word_count))
 
@@ -31,9 +44,11 @@ def transform_text_to_array(text, translator):
     text_array = [0] * len(translator)
 
     for word in text:
-        if word in translator:
-            word_position = translator[word]
-            text_array[word_position] += 1
+        if len(word) > 0:
+            stemmed_word = stemmer.stem(word)
+            if stemmed_word in translator:
+                word_position = translator[stemmed_word]
+                text_array[word_position] += 1
 
     return text_array
 
